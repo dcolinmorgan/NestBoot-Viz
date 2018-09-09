@@ -1,0 +1,10 @@
+recA	ssb	1	1	1	1
+recA	dinl	1	1	1	1
+recA	rpoH	1	1	1	1
+lexA	ssb	1	1	1	1
+ssb	ssb	1	1	1	1
+recF	dinl	1	1	1	1
+dinl	ssb	1	1	1	1
+dinl	rpoD	1	1	1	1
+dinl	rpoH	1	1	1	1
+rpoH	rpoH	1	1	1	1

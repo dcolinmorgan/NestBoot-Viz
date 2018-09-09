@@ -1,0 +1,13 @@
+recA	rpoS	1	1	1	1
+ssb	recF	1	1	1	1
+ssb	rpoS	1	1	1	1
+recF	dinl	1	1	1	1
+dinl	lexA	1	1	1	1
+dinl	recF	1	1	1	1
+dinl	rpoS	1	1	1	1
+umuDC	dinl	1	1	1	1
+umuDC	rpoS	1	1	1	1
+rpoD	recF	1	1	1	1
+rpoH	lexA	1	1	1	1
+rpoS	lexA	1	1	1	1
+rpoS	dinl	1	1	1	1
