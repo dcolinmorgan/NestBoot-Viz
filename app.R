@@ -15,6 +15,7 @@ require(pracma)
 library(network)
 library(reshape2)
 library(plotly)
+library(radarchart)
 require(visNetwork, quietly = TRUE)
 #### LOAD ####
 
@@ -444,9 +445,9 @@ server <- function(input, output) {
   output$jaccard <- renderPlot({
     
     if(input$demo==TRUE){
-      wee<-paste("lassodataMYCsign")#paste("lassodataMYCsign")
+      wee<-paste("lassodataMYCsign")
       datum<-ddd[[wee]]
-      qee<-paste("lassonameMYCsign")#paste("lassodataMYCsign")
+      qee<-paste("lassonameMYCsign")
       cellline<-fff[[qee]]
       }else{
         inFile <- input$file1
@@ -454,32 +455,19 @@ server <- function(input, output) {
           return(NULL)
         datum <-lapply(rev(mixedsort(inFile$datapath)), read.csv, header=FALSE,sep = input$sep)
         cellline<-inFile$name
-        # datum<-wee
       }
     
     JAKS<-matrix(0,length(cellline),length(cellline))
     rownames(JAKS)<-cellline
     colnames(JAKS)<-cellline
-    
-    # i<-2
-    # k<-3
+
     for(i in 1:length(cellline)){
       myFiles<-datum
-      # jj<-strsplit(myFiles,"_")
-      # jjj<-sapply(jj,"[[",5)
-      # j<-which.max(as.numeric(str_extract(jj, "\\d+\\.*\\d*")))
+
       net1<-datum[i]
-      # net1 <- read_delim(file.path(parent.folder,cellline[i]),"\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
-      # net1$V3<-NULL
-      # net1$V4<-NULL
-      # net1$N5<-NULL
       net1<-data.frame(net1)
-      # rownames(net1)<-paste(net1$X1,net1$X2,sep='')
       for(k in 1:length(cellline)){
         net2<-datum[k]
-        # net2 <- read_delim(file.path(parent.folder,cellline[k]),"\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
-        # net2<-data.frame(net2[c(1,2,6)])
-        # rownames(net2)<-paste(net2$X1,net2$X2,sep='')
         a<-intersect(net1,net2)
         b<-union(net1,net2)
         JSim<-dim(a)[1]/dim(b)[1]
@@ -488,6 +476,44 @@ server <- function(input, output) {
     c<-upgma(as.matrix(1-JAKS))
     plot(c)
     edgelabels(round(c$edge.length, digits=2),frame="none", adj=c(.5, -.75))
+    
+    
+  })
+  
+  output$radar <- renderChartJSRadar({
+    
+    if(input$demo==TRUE){
+      wee<-paste("lassodataMYCsign")
+      datum<-ddd[[wee]]
+      qee<-paste("lassonameMYCsign")
+      cellline<-fff[[qee]]
+    }else{
+      inFile <- input$file1
+      if (is.null(inFile))
+        return(NULL)
+      datum <-lapply(rev(mixedsort(inFile$datapath)), read.csv, header=FALSE,sep = input$sep)
+      cellline<-inFile$name
+    }
+    
+    JAKS<-matrix(0,length(cellline),length(cellline))
+    rownames(JAKS)<-cellline
+    colnames(JAKS)<-cellline
+    
+    for(i in 1:length(cellline)){
+      myFiles<-datum
+      
+      net1<-datum[i]
+      net1<-data.frame(net1)
+      for(k in 1:length(cellline)){
+        net2<-datum[k]
+        a<-intersect(net1,net2)
+        b<-union(net1,net2)
+        JSim<-dim(a)[1]/dim(b)[1]
+        JAKS[i,k]<-JSim
+      }}
+    c<-upgma(as.matrix(1-JAKS))
+    # plot(c)
+    chartJSRadar(data.frame(1-JAKS),labs=1:length(cellline),maxScale = 1,showToolTipLabel=TRUE)
     
     
   })
@@ -529,7 +555,8 @@ ui <- shinyUI(fluidPage(
         tabPanel("CytoscapeJS",rcytoscapejsOutput("CytoscapeJS",height='800px'),selectInput("clay",label="Layout:",c("CoSE"="cose","Cola"="cola","Concentric"="concentric","Circle"="circle","Dagre"="dagre","Grid"="grid","arbor"="arbor","markov"="cytoscape-markov-cluster"))),
         tabPanel("overlap",plotlyOutput("overlapPLOT"))#,downloadButton('downloadData', 'download'))
         ,
-        tabPanel("jaccard",plotOutput("jaccard",height='800px'))
+        tabPanel("jaccard",plotOutput("jaccard",height='800px')),
+        tabPanel("radar",chartJSRadarOutput("radar",height='800px'))
       )))
   
   
