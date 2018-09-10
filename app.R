@@ -5,6 +5,7 @@ library(zoo)
 library(dplyr)
 library(gtools)
 library(plyr)
+library('phangorn')
 library(rcytoscapejs)
 library(networkD3)
 library(pracma)
@@ -52,9 +53,6 @@ server <- function(input, output) {
     }
     edgeList
   })
-  
-  
-  
   
   output$forcelasso <- renderForceNetwork({
     if(input$demo==TRUE){
@@ -178,7 +176,7 @@ server <- function(input, output) {
   output$text1 <- renderPrint({ 
     if(input$demo==TRUE){
       qee<-paste("lassonameMYCsign")#paste("lassodataMYCsign")
-      aa<-fff[[qee]][[input$sparsity]]}else{
+      fff[[qee]][[input$sparsity]]}else{
         inFile <- input$file1
         if (is.null(inFile))
           return(NULL)
@@ -290,35 +288,7 @@ server <- function(input, output) {
     
   }
   
-  output$CyTb <- renderDataTable({
-    wee<-paste("lassodataMYCsign")
-    datum<-ddd[[wee]]
-    edgeData<-datum[[input$sparsity]][1:6]
-    
-    colnames(edgeData) <- c("sourceName", "targetName","link","link2","color", "weight")
-    edgeData<- data.frame(edgeData)
-    edgeData$color<-sign(edgeData$color)
-    edgeData$color<-gsub(-1,"#FF0000",edgeData$color)
-    edgeData$color<-gsub(1,"#00FF00",edgeData$color)
-    
-    
-    gD<-simplify(graph.data.frame(edgeData,directed=TRUE))
-    nodeData <- data.frame(id = c(0:(igraph::vcount(gD) - 1)),name = igraph::V(gD)$name)
-    getNodeID <- function(x){which(x == igraph::V(gD)$name) - 1}
-    
-    edgeData <- plyr::ddply(edgeData, .variables = c("sourceName", "targetName", "weight","color"),
-                            function (x) data.frame(source = getNodeID(x$source),
-                                                    target = getNodeID(x$target)))
-    nodeData <- cbind(nodeData, nodeDegree=igraph::degree(gD, v = igraph::V(gD), mode = "all"))
-    
-    network <- createCytoscapeJsNetwork(nodeData, edgeData)
-    rcytoscapejs(network$nodes, network$edges, showPanzoom=TRUE)
-    
-    
-    datatable(edgeData, options = list(pageLength = 5))
-    
-  })
-  
+
   
   #datatable(edgeData, options = list(pageLength = 5))
   output$overlapPLOT <- renderPlotly({
@@ -434,37 +404,6 @@ server <- function(input, output) {
     
     
   })
-  
-  output$summary <- renderPrint({
-    wee<-paste("lassodataMYCsign")
-    datum<-ddd[[wee]]
-    
-    edgeList<-datum[[input$sparsity]][1:6]
-    colnames(edgeList) <- c("SourceName", "TargetName","Link","Link2","Sign", "Weight")
-    
-    gD<-simplify(graph.data.frame(edgeList,directed=TRUE))
-    nodeList <- data.frame(ID = c(0:(igraph::vcount(gD) - 1)),nName = igraph::V(gD)$name)
-    getNodeID <- function(x){which(x == igraph::V(gD)$name) - 1}
-    
-    edgeList <- plyr::ddply(edgeList, .variables = c("SourceName", "TargetName", "Weight"), 
-                            function (x) data.frame(SourceID = getNodeID(x$SourceName), 
-                                                    TargetID = getNodeID(x$TargetName)))
-    nodeList <- cbind(nodeList, nodeDegree=igraph::degree(gD, v = igraph::V(gD), mode = "all"))
-    betAll <- igraph::betweenness(gD, v = igraph::V(gD), directed = FALSE) / (((igraph::vcount(gD) - 1) * (igraph::vcount(gD)-2)) / 2)
-    betAll.norm <- (betAll - min(betAll))/(max(betAll) - min(betAll))
-    nodeList <- cbind(nodeList, nodeBetweenness=100*betAll.norm) # We are scaling the value by multiplying it by 100 for visualization purposes only (to create larger nodes)
-    rm(betAll, betAll.norm)
-    
-    dsAll <- igraph::similarity.dice(gD, vids = igraph::V(gD), mode = "all")
-    
-    F1 <- function(x) {data.frame(diceSim = dsAll[x$SourceID +1, x$TargetID + 1])}
-    edgeList <- plyr::ddply(edgeList, .variables=c("SourceName", "TargetName", "Weight", "SourceID", "TargetID"), 
-                            function(x) data.frame(F1(x)))
-    edgeList
-    
-  })
-  
-  
   output$downloadData <- downloadHandler({
     if(input$demo==TRUE){
       wee<-paste("lassoMYCsignlinkplotdata")#paste("lassodataMYCsign")
@@ -502,7 +441,56 @@ server <- function(input, output) {
     filename = function() { paste(wee,'.tsv', sep='')}
     content = function(file) {
       write.csv(edgeList, file)}})
-  
+  output$jaccard <- renderPlot({
+    
+    if(input$demo==TRUE){
+      wee<-paste("lassodataMYCsign")#paste("lassodataMYCsign")
+      datum<-ddd[[wee]]
+      qee<-paste("lassonameMYCsign")#paste("lassodataMYCsign")
+      cellline<-fff[[qee]]
+      }else{
+        inFile <- input$file1
+        if (is.null(inFile))
+          return(NULL)
+        datum <-lapply(rev(mixedsort(inFile$datapath)), read.csv, header=FALSE,sep = input$sep)
+        cellline<-inFile$name
+        # datum<-wee
+      }
+    
+    JAKS<-matrix(0,length(cellline),length(cellline))
+    rownames(JAKS)<-cellline
+    colnames(JAKS)<-cellline
+    
+    # i<-2
+    # k<-3
+    for(i in 1:length(cellline)){
+      myFiles<-datum
+      # jj<-strsplit(myFiles,"_")
+      # jjj<-sapply(jj,"[[",5)
+      # j<-which.max(as.numeric(str_extract(jj, "\\d+\\.*\\d*")))
+      net1<-datum[i]
+      # net1 <- read_delim(file.path(parent.folder,cellline[i]),"\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
+      # net1$V3<-NULL
+      # net1$V4<-NULL
+      # net1$N5<-NULL
+      net1<-data.frame(net1)
+      # rownames(net1)<-paste(net1$X1,net1$X2,sep='')
+      for(k in 1:length(cellline)){
+        net2<-datum[k]
+        # net2 <- read_delim(file.path(parent.folder,cellline[k]),"\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
+        # net2<-data.frame(net2[c(1,2,6)])
+        # rownames(net2)<-paste(net2$X1,net2$X2,sep='')
+        a<-intersect(net1,net2)
+        b<-union(net1,net2)
+        JSim<-dim(a)[1]/dim(b)[1]
+        JAKS[i,k]<-JSim
+      }}
+    c<-upgma(as.matrix(1-JAKS))
+    plot(c)
+    edgelabels(round(c$edge.length, digits=2),frame="none", adj=c(.5, -.75))
+    
+    
+  })
   
 }
 #### UI ####
@@ -515,25 +503,17 @@ ui <- shinyUI(fluidPage(
       
       fileInput('file1', 'Network file(s) to upload',multiple = TRUE),
       radioButtons('sep', 'Separator',c(Tab='\t',Comma=','),'\t'),
-      tags$div(class="header", checked=NA,
-               tags$p("Examples for:"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/L1000", "L1000,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/MYC", "MYC,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/Arrieta-Ortiz", "Arrieta-Ortiz,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/Lorenz", "Lorenz,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/Gardner", "Gardner,")
-      ),
-      tags$hr(),
+      # tags$hr(),
       fileInput('file2', 'Overlap file(s) to upload',multiple = TRUE),
       radioButtons('sep2', 'Separator',c(Tab='\t',Comma=','),'\t'),
       tags$div(class="header", checked=NA,
-               tags$p("Examples for:"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/L1000", "L1000,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/MYC", "MYC,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/Arrieta-Ortiz", "Arrieta-Ortiz,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/Lorenz", "Lorenz,"),
-               tags$a(href="https://github.com/dcolinmorgan/NestBoot-ed/Gardner", "Gardner")
-      ),
+               tags$p("Examples for each file type:"),
+               tags$a(href="https://github.com/dcolinmorgan/NestBoot-Viz/tree/master/L1000NestBoot_Aug2018", "L1000,"),
+               tags$a(href="https://github.com/dcolinmorgan/NestBoot-Viz/tree/master/MycNestBoot_May2017", "MYC,"),
+               tags$a(href="https://github.com/dcolinmorgan/NestBoot-Viz/tree/master/arrieta-ortizNestBoot_Feb2018", "Arrieta-Ortiz,"),
+               tags$a(href="https://github.com/dcolinmorgan/NestBoot-Viz/tree/master/lorenzNestBoot_OCT2017", "Lorenz,"),
+               tags$a(href="https://github.com/dcolinmorgan/NestBoot-Viz/tree/master/gardnerNestBoot_OCT2017", "Gardner")
+               ),
       tags$hr(),
       
       sliderInput("sparsity", "Sparsity",1, min = 1,max=length(lassodataMYCsign), step = 1),#max = dim("contents")[[1]][1], 
@@ -548,6 +528,8 @@ ui <- shinyUI(fluidPage(
         tabPanel("forceSign", forceNetworkOutput("forcelasso",height='800px')),
         tabPanel("CytoscapeJS",rcytoscapejsOutput("CytoscapeJS",height='800px'),selectInput("clay",label="Layout:",c("CoSE"="cose","Cola"="cola","Concentric"="concentric","Circle"="circle","Dagre"="dagre","Grid"="grid","arbor"="arbor","markov"="cytoscape-markov-cluster"))),
         tabPanel("overlap",plotlyOutput("overlapPLOT"))#,downloadButton('downloadData', 'download'))
+        ,
+        tabPanel("jaccard",plotOutput("jaccard",height='800px'))
       )))
   
   
