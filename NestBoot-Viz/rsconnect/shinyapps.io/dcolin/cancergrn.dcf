@@ -1,0 +1,12 @@
+name: cancergrn
+title: NestBoot-Viz
+username:
+account: dcolin
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 646187
+bundleId: 1845432
+url: https://dcolin.shinyapps.io/cancergrn/
+when: 1548841032.84845
+asMultiple: FALSE
+asStatic: FALSE
